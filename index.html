@@ -1,0 +1,1120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#171b1c">
+  <meta name="description" content="An offline, haptic landscape calculator companion with a classic 12C-style layout.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <title>12C Classic</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --case: #17191a;
+      --case-edge: #080a0a;
+      --gold: #c99a3a;
+      --blue: #69b7da;
+      --key-face: #17191b;
+      --key-edge: #080909;
+      --key-text: #f1f0e8;
+      --muted: #92958f;
+      --lcd: #bdc5a1;
+      --lcd-ink: #202a1e;
+      --gap: clamp(3px, 1.15vw, 6px);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; min-height: 100%; background: #101415; font-family: Arial, Helvetica, sans-serif; }
+    body {
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100svh; padding: max(10px, env(safe-area-inset-top)) 8px max(10px, env(safe-area-inset-bottom));
+      background: radial-gradient(ellipse at 50% 15%, #293031 0%, #151a1b 56%, #0c1011 100%);
+      overflow-x: hidden; user-select: none;
+    }
+    .app { width: min(100%, 520px); display: flex; flex-direction: column; gap: 8px; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; color:#b4b8b0; font-size:11px; letter-spacing:.14em; padding:0 4px; text-transform:uppercase; }
+    .topbar .brandline { font-weight:700; letter-spacing:.22em; }
+    .top-actions { display:flex; align-items:center; gap:7px; }
+    .tiny-toggle {
+      appearance:none; border:1px solid #414849; border-radius:20px; background:#1b2223; color:#d5d8d0;
+      font-size:10px; font-weight:700; letter-spacing:.06em; padding:7px 10px; min-height:30px;
+    }
+    .tiny-toggle[aria-pressed="true"] { border-color:#98762e; color:#f2d18c; background:#332a19; }
+    .calculator {
+      position:relative; width:100%; padding:12px 12px 13px; border-radius:12px;
+      background: linear-gradient(135deg, #353b3b 0%, #15191a 15%, #242829 50%, #0c0e0f 100%);
+      border:2px solid #070909; box-shadow: 0 18px 35px #0009, inset 0 1px 1px #ffffff30, inset 0 -2px 3px #000;
+    }
+    .calculator::before { content:""; position:absolute; inset:5px; border:1px solid #59606166; border-radius:8px; pointer-events:none; }
+    .metal-panel {
+      position:relative; height:clamp(52px, 15vw, 72px); border-radius:4px;
+      background:linear-gradient(180deg,#d9d8c8,#aaa995 48%,#d0cfbf);
+      border:2px solid #555952; box-shadow: inset 0 1px 4px #fff9, 0 2px 2px #000;
+      display:flex; align-items:center; justify-content:space-between; padding:0 12px; margin:2px 2px 10px;
+    }
+    .hp-mark { color:#272b28; display:flex; align-items:center; gap:5px; }
+    .hp-emblem { width:27px; height:27px; border:2px solid #252a25; border-radius:50%; display:grid; place-items:center; font-family:Georgia,serif; font-size:15px; font-style:italic; font-weight:bold; line-height:1; transform:rotate(-12deg); }
+    .hp-word { font-size:10px; line-height:1.05; font-weight:800; letter-spacing:-.03em; }
+    .model-mark { color:#212620; text-align:right; font-size:21px; font-weight:900; letter-spacing:-.07em; line-height:.9; }
+    .model-mark small { display:block; font-size:7px; letter-spacing:.25em; font-weight:700; margin-top:4px; }
+    .display-frame { margin:0 2px 12px; padding:7px 8px; background:linear-gradient(#5a5b4b,#2f342b); border:2px solid #090b09; border-radius:4px; box-shadow: inset 0 2px 4px #000a, 0 1px 0 #ffffff25; }
+    .lcd {
+      height:clamp(48px, 13vw, 62px); padding:4px 8px 3px; border-radius:2px;
+      background:linear-gradient(180deg,#c5cbaa,#b0b998); color:var(--lcd-ink);
+      box-shadow:inset 0 1px 7px #39422b66; display:flex; flex-direction:column; justify-content:space-between;
+      font-family:"Courier New", monospace; overflow:hidden;
+    }
+    .indicators { display:flex; min-height:11px; gap:10px; font-size:9px; font-weight:bold; letter-spacing:.1em; opacity:.84; }
+    .indicators span { min-width:8px; }
+    .screen-value { font-size:clamp(26px, 7vw, 35px); line-height:1; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:clip; letter-spacing:-.045em; font-weight:700; text-shadow:0 0 1px #1c261a; }
+    .sub-display { display:flex; justify-content:space-between; padding:4px 3px 0; color:#b0b5a9; font:700 9px/1 Arial,sans-serif; letter-spacing:.13em; }
+    .keyboard { display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); grid-template-rows:repeat(4, clamp(56px, 15.2vw, 72px)); gap:var(--gap); padding:5px 1px 0; }
+    .key-wrap { position:relative; min-width:0; padding-top:9px; padding-bottom:5px; }
+    .key-wrap.enter-wrap { grid-column:6; grid-row:3 / span 2; padding-top:9px; padding-bottom:5px; }
+    .key-wrap.enter-wrap .key { height:100%; }
+    .key {
+      width:100%; height:100%; position:relative; appearance:none; border:1px solid #050606; border-radius:5px;
+      color:var(--key-text); background:linear-gradient(155deg,#33383a 0%,#202426 36%,#101314 100%);
+      box-shadow:0 2px 0 #050606, 0 3px 3px #0009, inset 0 1px 1px #ffffff20;
+      padding:0 1px; display:flex; align-items:center; justify-content:center; flex-direction:column;
+      font-weight:700; font-size:clamp(11px, 3.1vw, 16px); line-height:1; touch-action:manipulation; cursor:pointer;
+      transition:transform .055s ease, filter .055s ease, box-shadow .055s ease;
+    }
+    .key:active, .key.pressed { transform:translateY(2px); box-shadow:0 0 0 #050606, inset 0 2px 4px #000b; filter:brightness(1.18); }
+    .key.goldface { background:linear-gradient(155deg,#e6b64a,#9c7021 60%,#664715); color:#17130b; }
+    .key.blueface { background:linear-gradient(155deg,#8bcbe4,#4087a6 65%,#23536d); color:#0e1a1f; }
+    .key.onkey { background:linear-gradient(155deg,#252a2b,#101314); min-height:92%; }
+    .key.primary { font-size:clamp(11px, 3vw, 15px); }
+    .key.long { font-size:clamp(8px, 2.35vw, 11px); letter-spacing:-.04em; }
+    .key .blue { position:absolute; bottom:3px; left:2px; right:2px; color:var(--blue); font-size:clamp(6px,1.65vw,8px); text-align:center; line-height:1; white-space:nowrap; font-weight:800; }
+    .key .gold { position:absolute; top:-9px; left:-4px; right:-4px; color:var(--gold); font-size:clamp(5px,1.5vw,7px); line-height:1; text-align:center; white-space:nowrap; font-weight:800; letter-spacing:.01em; }
+    .key-wrap.numeric .key { background:linear-gradient(155deg,#3a4041,#1b2021 58%,#111516); }
+    .key-wrap.operator .key { background:linear-gradient(155deg,#303738,#171c1d 62%,#0d1112); font-size:20px; }
+    .key-wrap .key .primary-label { transform:translateY(-1px); }
+    .key-help { text-align:center; color:#90968d; font-size:9px; letter-spacing:.07em; padding:9px 2px 0; line-height:1.4; }
+    .footer { display:flex; justify-content:space-between; align-items:center; color:#737c78; font-size:9px; letter-spacing:.14em; padding:0 5px; text-transform:uppercase; }
+    .status-pill { color:#e7d4a4; }
+    .toast { position:fixed; left:50%; bottom:calc(18px + env(safe-area-inset-bottom)); transform:translate(-50%,14px); opacity:0; pointer-events:none; z-index:5; border:1px solid #565d56; color:#e9eadf; background:#202725ee; padding:9px 14px; border-radius:30px; font-size:12px; box-shadow:0 4px 18px #0008; transition:all .18s ease; white-space:nowrap; }
+    .toast.show { opacity:1; transform:translate(-50%,0); }
+    .help-panel { display:none; background:#1c2322; border:1px solid #46504c; border-radius:8px; color:#d2d7cd; padding:12px 14px; font-size:12px; line-height:1.5; }
+    .help-panel.open { display:block; }
+    .help-panel b { color:#f0d18e; }
+    .help-panel p { margin:5px 0; }
+    .help-panel .close-help { float:right; border:0; background:none; color:#aeb6aa; font-size:18px; }
+    @media (max-height: 740px) {
+      body { align-items:flex-start; }
+      .app { gap:5px; }
+      .calculator { padding:9px 10px 9px; }
+      .metal-panel { margin-bottom:7px; }
+      .display-frame { margin-bottom:7px; }
+      .keyboard { grid-template-rows:repeat(4, clamp(48px, 12.8vw, 61px)); }
+      .key-help { padding-top:5px; }
+    }
+    @media (min-width: 500px) {
+      .keyboard { grid-template-rows:repeat(4,68px); }
+      .key { font-size:15px; }
+      .key .blue { font-size:8px; }
+      .key .gold { font-size:7px; }
+    }
+
+    /* Reference-matched landscape shell */
+    html, body { width:100%; height:100%; min-height:100%; overflow:hidden; }
+    body {
+      padding:0; align-items:center; justify-content:center;
+      background:#484848;
+    }
+    .app {
+      width:min(100vw, 155.0svh);
+      height:min(100svh, 64.516vw);
+      max-width:none; gap:0; position:relative;
+      display:block;
+    }
+    .topbar {
+      position:absolute; z-index:8; top:7px; right:8px;
+      justify-content:flex-end; padding:0; opacity:.82;
+    }
+    .topbar .brandline, #helpToggle { display:none; }
+    .tiny-toggle { min-height:24px; padding:4px 8px; font-size:9px; }
+    .calculator {
+      position:absolute; inset:0; width:100%; height:100%;
+      padding:0; border-radius:10px; overflow:hidden;
+      background:linear-gradient(135deg,#3c4141 0%,#17191a 15%,#242728 50%,#111313 100%);
+      border:2px solid #080909;
+      box-shadow:0 9px 22px #0008,inset 0 1px 1px #ffffff25,inset 0 -2px 3px #000;
+    }
+    .calculator::before {
+      inset:1.2%; border:2px solid #d8d5c6; border-radius:9px;
+      box-shadow:0 0 0 1px #77776d; pointer-events:none;
+    }
+    .metal-panel {
+      position:absolute; top:0; left:0; right:0; width:100%;
+      height:28%; margin:0; padding:0; border:0; border-radius:0;
+      background:linear-gradient(180deg,#e0d8c1 0%,#d3cbb4 100%);
+      box-shadow:inset 0 -2px 3px #77715f55;
+    }
+    .hp-mark, .model-mark { display:none !important; }
+    .display-frame {
+      position:absolute; z-index:2; top:5.7%; left:13.1%;
+      width:55.5%; height:17.4%; margin:0; padding:0.55%;
+      border:2px solid #8d8266; border-radius:8px;
+      background:#a98f61;
+      box-shadow:inset 0 1px 4px #fff5,0 1px 2px #655a45;
+    }
+    .lcd {
+      height:100%; width:100%; padding:2px 8px;
+      border:2px solid #777c6b; border-radius:5px;
+      background:#a2a58d; color:#20251f;
+      box-shadow:inset 0 1px 5px #42493655;
+    }
+    .indicators { min-height:9px; font-size:clamp(6px,1.05vh,10px); gap:8px; }
+    .screen-value {
+      font-size:clamp(19px,4.5vh,37px); letter-spacing:-.04em;
+    }
+    .sub-display { display:none; }
+    .keyboard {
+      position:absolute; top:28.5%; left:3.0%; right:3.0%; bottom:4.3%;
+      height:auto; padding:0;
+      grid-template-columns:repeat(10,minmax(0,1fr));
+      grid-template-rows:repeat(4,minmax(0,1fr));
+      gap:1.0%;
+    }
+    .key-wrap { padding:10% 3% 4%; }
+    .key-wrap.enter-wrap { padding:5% 3% 4%; }
+    .key-wrap.enter-wrap .key { height:100%; }
+    .key {
+      border-radius:6px; border-width:2px;
+      font-size:clamp(10px,2.15vh,19px);
+      box-shadow:0 2px 0 #050606,0 3px 3px #0009,inset 0 1px 1px #ffffff20;
+    }
+    .key.long { font-size:clamp(8px,1.75vh,15px); }
+    .key .blue {
+      bottom:3px; font-size:clamp(6px,1.18vh,10px);
+    }
+    .key .gold {
+      top:clamp(-11px,-1.45vh,-5px);
+      font-size:clamp(6px,1.18vh,10px);
+    }
+    .key-wrap.operator .key { font-size:clamp(17px,3vh,27px); }
+    .key-help, .footer { display:none !important; }
+    .help-panel { display:none !important; }
+    .toast { bottom:8px; font-size:11px; }
+    .rotate-prompt { display:none; }
+    @media (orientation:portrait) {
+      .app { display:none; }
+      .rotate-prompt {
+        position:fixed; inset:0; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:12px;
+        background:#171b1c; color:#eee9d8; text-align:center;
+        font:600 13px Arial,sans-serif; letter-spacing:.12em;
+      }
+      .rotate-prompt strong { font-size:15px; }
+      .rotate-prompt span { color:#aeb4a8; font-size:11px; letter-spacing:.04em; }
+      .rotate-icon { font-size:44px; color:#d5b66f; line-height:1; }
+    }
+    @media (orientation:landscape) and (max-height:340px) {
+      .topbar { top:2px; right:3px; }
+      .tiny-toggle { min-height:18px; padding:2px 6px; font-size:7px; }
+    }
+
+    /* Fine geometry and legends tuned against the supplied HP 12C photograph */
+    :root {
+      --gold: #c77b35;
+      --blue: #159bc4;
+    }
+    .metal-panel { height:27.3%; }
+    .display-frame {
+      top:5.7%; left:13.1%; width:55.5%; height:17.2%;
+      border-radius:10px; padding:.58%;
+      background:#ad956b;
+      border:2px solid #9a8969;
+      box-shadow:inset 0 1px 4px #fff5,0 2px 3px #655a45;
+    }
+    .lcd {
+      border-radius:7px;
+      background:#a1a48d;
+      border:2px solid #7e826f;
+      box-shadow:inset 0 2px 7px #42493655;
+    }
+    .indicators { width:100%; min-height:11px; font-size:clamp(7px,1.15vh,12px); }
+    #userIndicator { margin-left:42%; }
+    .screen-value {
+      font-size:clamp(21px,4.7vh,40px);
+      font-weight:500;
+      letter-spacing:.015em;
+    }
+    .keyboard {
+      top:28.5%; left:3%; right:3%; bottom:8.9%;
+      gap:1%;
+    }
+    .key-wrap { padding:40% 13% 8%; }
+    .key-wrap.enter-wrap { padding:40% 13% 8%; }
+    .key {
+      border-radius:8px;
+      border-width:2px;
+      background:linear-gradient(160deg,#424647 0%,#292d2e 45%,#171a1b 100%);
+      box-shadow:0 3px 0 #050606,0 4px 5px #0009,inset 0 1px 2px #ffffff25;
+      font-weight:600;
+    }
+    .key-wrap.numeric .key {
+      background:linear-gradient(160deg,#454a4b 0%,#292e2f 48%,#171a1b 100%);
+    }
+    .key-wrap.operator .key {
+      background:linear-gradient(160deg,#383e3f 0%,#222728 60%,#131718 100%);
+    }
+    .key .gold {
+      top:clamp(-18px,-1.8vh,-8px);
+      color:#cb7935;
+      font-size:clamp(8px,1.55vh,15px);
+      letter-spacing:0;
+      font-weight:700;
+    }
+    .key .blue {
+      bottom:4px;
+      color:#159bc4;
+      font-size:clamp(8px,1.48vh,14px);
+      font-weight:700;
+    }
+    .key.primary { font-size:clamp(13px,2.15vh,21px); }
+    .key.long { font-size:clamp(10px,1.9vh,18px); }
+    .key-wrap.operator .key { font-size:clamp(20px,3.1vh,30px); }
+    .key.goldface { background:linear-gradient(155deg,#f0b640,#c18b25 60%,#825a18); }
+    .key.blueface { background:linear-gradient(155deg,#8ac9e0,#4b9ab9 65%,#28657f); }
+    .key-wrap.enter-wrap .primary-label {
+      writing-mode:vertical-rl;
+      text-orientation:upright;
+      letter-spacing:-.12em;
+      transform:none;
+      font-size:clamp(13px,2.0vh,20px);
+    }
+    .clear-label {
+      position:absolute;
+      z-index:3;
+      top:51%;
+      left:10.5%;
+      width:47%;
+      height:0;
+      border-top:2px solid #c77b35;
+      color:#c77b35;
+      text-align:center;
+      font-size:clamp(8px,1.55vh,15px);
+      font-weight:700;
+      line-height:1;
+      pointer-events:none;
+    }
+    .clear-label::before {
+      content:"";
+      position:absolute;
+      left:0; top:0;
+      height:10px;
+      border-left:2px solid #c77b35;
+    }
+    .clear-label::after {
+      content:"";
+      position:absolute;
+      right:0; top:0;
+      height:10px;
+      border-right:2px solid #c77b35;
+    }
+    .clear-label { padding-top:2px; }
+    .clear-label::marker { content:none; }
+
+
+    /* ===== v3: fixed 600x375 stage measured from the reference image, scaled to fit ===== */
+    html,body{background:#484848;}
+    .app{position:absolute!important;left:50%;top:50%;width:600px!important;height:375px!important;max-width:none;transform:translate(-50%,-50%) scale(var(--s,1));transform-origin:center;}
+    .calculator{border-radius:0;border:0;background:#222324;box-shadow:none;}
+    .calculator::before{content:"";position:absolute;inset:calc(113px*var(--g,1)) calc(18px*var(--f,1)) calc(30px*var(--g,1)) calc(18px*var(--f,1));border:3px solid #d9d3bd;border-radius:9px;box-shadow:none;background:#1f2021;}
+    .metal-panel{height:102px!important;background:#e1d9c0;box-shadow:inset 0 -3px 0 #cfc7ac;}
+    .display-frame{left:93px!important;top:22px!important;width:312px!important;height:66px!important;padding:6px!important;border-radius:5px;background:#a98c5c;border:1px solid #8d7449;}
+    .lcd{border-radius:2px;border:0;background:#a3a68f;padding:2px 8px;box-shadow:inset 0 1px 3px #3b422f88;}
+    .indicators{font-size:8px;min-height:10px;}
+    .screen-value{font-size:30px;}
+    .keyboard{position:absolute!important;left:0!important;top:0!important;right:auto!important;bottom:auto!important;width:600px;height:375px;display:block!important;padding:0;}
+    .key-wrap,.key-wrap.enter-wrap{position:absolute!important;width:40px;height:32px;padding:0!important;}
+    .key-wrap.enter-wrap{width:38px;height:92px;}
+    .key{border-radius:4px;border:1px solid #060707;font-size:15px!important;background:linear-gradient(180deg,#3c4244,#2a2f31 70%,#202426);box-shadow:0 2px 0 #050606,inset 0 1px 0 #ffffff22;}
+    .key-wrap.operator .key{font-size:21px!important;}
+    .key.long{font-size:13px!important;letter-spacing:0;}
+    .key .primary-label{transform:translateY(-3px);}
+    .key-wrap.operator .primary-label{transform:translateY(-1px);}
+    .key-wrap.enter-wrap .primary-label{transform:none;font-size:14px;letter-spacing:-.05em;}
+    .key.goldface{background:linear-gradient(180deg,#f2a64a,#d9822a);}
+    .key.blueface{background:linear-gradient(180deg,#38b6e6,#1a96c8);}
+    .key.goldface .primary-label,.key.blueface .primary-label{transform:none;color:#0c1215;}
+    .key .gold{top:-14px!important;left:-8px;right:-8px;font-size:9.5px!important;color:#cf7a2e;font-weight:600;letter-spacing:0;}
+    .key .blue{bottom:2px!important;font-size:8px!important;color:#1ea3d2;font-weight:600;}
+    .key-wrap.enter-wrap .gold{top:-14px!important;}
+    .key-wrap.enter-wrap .blue{bottom:3px!important;}
+    .br{position:absolute;height:5px;border:1.5px solid #cf7a2e;border-bottom:0;pointer-events:none;}
+    .br i{position:absolute;left:50%;top:-7px;transform:translateX(-50%);padding:0 5px;background:#1f2021;color:#cf7a2e;font:600 9.5px/12px Arial,sans-serif;font-style:normal;white-space:nowrap;}
+    .topbar{top:4px;right:6px;}
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="12C Classic financial calculator">
+    <div class="topbar">
+      <span class="brandline">FINANCIAL · RPN</span>
+      <div class="top-actions">
+        <button class="tiny-toggle" id="helpToggle" type="button" aria-expanded="false">KEY GUIDE</button>
+        <button class="tiny-toggle" id="hapticToggle" type="button" aria-pressed="true">HAPTIC ✓</button>
+      </div>
+    </div>
+    <section class="calculator" aria-label="Classic financial calculator">
+      <div class="metal-panel">
+        <div class="hp-mark"><div class="hp-emblem">hp</div><div class="hp-word">HEWLETT<br>PACKARD</div></div>
+        <div class="model-mark">12C<small>FINANCIAL</small></div>
+      </div>
+      <div class="display-frame">
+        <div class="lcd" role="status" aria-live="polite">
+          <div class="indicators" id="indicators"><span id="prefixIndicator"></span><span id="beginIndicator"></span><span id="userIndicator">RPN</span><span id="modeIndicator"></span></div>
+          <div class="screen-value" id="screenValue">0.00</div>
+        </div>
+        <div class="sub-display"><span id="leftStatus">READY</span><span id="rightStatus">10 DIGIT · 12 DIGIT INTERNAL</span></div>
+      </div>
+      <div class="keyboard" id="keyboard">
+        <div class="br" style="left:38px;top:171px;width:108px" aria-hidden="true"><i>BOND</i></div><div class="br" style="left:148px;top:171px;width:148px" aria-hidden="true"><i>DEPRECIATION</i></div><div class="br" style="left:92px;top:229px;width:257px" aria-hidden="true"><i>CLEAR</i></div>
+        <!-- Row 1 -->
+        <div class="key-wrap"><button class="key" data-key="n"><span class="gold">AMORT</span><span class="primary-label">n</span><span class="blue">12×</span></button></div>
+        <div class="key-wrap"><button class="key" data-key="i"><span class="gold">INT</span><span class="primary-label">i</span><span class="blue">12÷</span></button></div>
+        <div class="key-wrap"><button class="key" data-key="PV"><span class="gold">NPV</span><span class="primary-label">PV</span><span class="blue">CF₀</span></button></div>
+        <div class="key-wrap"><button class="key" data-key="PMT"><span class="gold">RND</span><span class="primary-label">PMT</span><span class="blue">CFⱼ</span></button></div>
+        <div class="key-wrap"><button class="key" data-key="FV"><span class="gold">IRR</span><span class="primary-label">FV</span><span class="blue">Nⱼ</span></button></div>
+        <div class="key-wrap"><button class="key long" data-key="CHS"><span class="primary-label">CHS</span><span class="blue">DATE</span></button></div>
+        <div class="key-wrap numeric"><button class="key" data-key="7"><span class="primary-label">7</span><span class="blue">BEG</span></button></div>
+        <div class="key-wrap numeric"><button class="key" data-key="8"><span class="primary-label">8</span><span class="blue">END</span></button></div>
+        <div class="key-wrap numeric"><button class="key" data-key="9"><span class="primary-label">9</span><span class="blue">MEM</span></button></div>
+        <div class="key-wrap operator"><button class="key" data-key="÷"><span class="primary-label">÷</span></button></div>
+        <!-- Row 2 -->
+        <div class="key-wrap"><button class="key" data-key="y^x"><span class="gold">PRICE</span><span class="primary-label">yˣ</span><span class="blue">√x</span></button></div>
+        <div class="key-wrap"><button class="key" data-key="1/x"><span class="gold">YTM</span><span class="primary-label">1/x</span><span class="blue">eˣ</span></button></div>
+        <div class="key-wrap"><button class="key" data-key="%T"><span class="gold">SL</span><span class="primary-label">%T</span><span class="blue">LN</span></button></div>
+        <div class="key-wrap"><button class="key" data-key="Δ%"><span class="gold">SOYD</span><span class="primary-label">Δ%</span><span class="blue">FRAC</span></button></div>
+        <div class="key-wrap"><button class="key" data-key="%"><span class="gold">DB</span><span class="primary-label">%</span><span class="blue">INTG</span></button></div>
+        <div class="key-wrap"><button class="key" data-key="EEX"><span class="primary-label">EEX</span><span class="blue">ΔDYS</span></button></div>
+        <div class="key-wrap numeric"><button class="key" data-key="4"><span class="primary-label">4</span><span class="blue">D.MY</span></button></div>
+        <div class="key-wrap numeric"><button class="key" data-key="5"><span class="primary-label">5</span><span class="blue">M.DY</span></button></div>
+        <div class="key-wrap numeric"><button class="key" data-key="6"><span class="primary-label">6</span><span class="blue">x̄ w</span></button></div>
+        <div class="key-wrap operator"><button class="key" data-key="×"><span class="primary-label">×</span></button></div>
+        <!-- Row 3 -->
+        <div class="key-wrap"><button class="key long" data-key="R/S"><span class="gold">P/R</span><span class="primary-label">R/S</span></button></div>
+        <div class="key-wrap"><button class="key long" data-key="SST"><span class="gold">Σ</span><span class="primary-label">SST</span><span class="blue">BST</span></button></div>
+        <div class="key-wrap"><button class="key" data-key="R↓"><span class="gold">PRGM</span><span class="primary-label">R↓</span><span class="blue">GTO</span></button></div>
+        <div class="key-wrap"><button class="key" data-key="x↔y"><span class="gold">FIN</span><span class="primary-label">x≷y</span><span class="blue">x≤y</span></button></div>
+        <div class="key-wrap"><button class="key" data-key="CLx"><span class="gold">REG</span><span class="primary-label">CLx</span><span class="blue">x≠0</span></button></div>
+        <div class="key-wrap enter-wrap"><button class="key long" data-key="ENTER"><span class="gold">PREFIX</span><span class="primary-label">ENTER</span><span class="blue">LSTx</span></button></div>
+        <div class="key-wrap numeric"><button class="key" data-key="1"><span class="primary-label">1</span><span class="blue">x̂, r</span></button></div>
+        <div class="key-wrap numeric"><button class="key" data-key="2"><span class="primary-label">2</span><span class="blue">ŷ, r</span></button></div>
+        <div class="key-wrap numeric"><button class="key" data-key="3"><span class="primary-label">3</span><span class="blue">n!</span></button></div>
+        <div class="key-wrap operator"><button class="key" data-key="−"><span class="primary-label">−</span><span class="blue">←</span></button></div>
+        <!-- Row 4 -->
+        <div class="key-wrap"><button class="key onkey long" data-key="ON"><span class="primary-label">ON</span></button></div>
+        <div class="key-wrap"><button class="key goldface" data-key="f"><span class="primary-label">f</span></button></div>
+        <div class="key-wrap"><button class="key blueface" data-key="g"><span class="primary-label">g</span></button></div>
+        <div class="key-wrap"><button class="key long" data-key="STO"><span class="primary-label">STO</span></button></div>
+        <div class="key-wrap"><button class="key long" data-key="RCL"><span class="primary-label">RCL</span></button></div>
+        <div class="key-wrap numeric"><button class="key" data-key="0"><span class="primary-label">0</span><span class="blue">x̄</span></button></div>
+        <div class="key-wrap numeric"><button class="key" data-key="."><span class="primary-label">.</span><span class="blue">s</span></button></div>
+        <div class="key-wrap"><button class="key" data-key="Σ+"><span class="primary-label">Σ+</span><span class="blue">Σ−</span></button></div>
+        <div class="key-wrap operator"><button class="key" data-key="+"><span class="primary-label">+</span></button></div>
+      </div>
+      <div class="key-help">GOLD FUNCTION: PRESS <b>f</b> FIRST · BLUE FUNCTION: PRESS <b>g</b> FIRST</div>
+    </section>
+    <section class="help-panel" id="helpPanel">
+      <button class="close-help" id="closeHelp" aria-label="Close key guide">×</button>
+      <b>Quick key guide</b>
+      <p><b>RPN:</b> enter the first number, press ENTER, enter the next number, then choose +, −, × or ÷. For example: <b>12 ENTER 3 ÷</b>.</p>
+      <p><b>Gold functions:</b> press <b>f</b>, then the key. <b>Blue functions:</b> press <b>g</b>, then the key.</p>
+      <p><b>TVM:</b> enter values and press n, i, PV, PMT or FV to store them. After storing the known values, press the key for the value to solve.</p>
+      <p><b>Memory:</b> STO then a digit stores X; RCL then a digit recalls it. The calculator keeps its stack, financial registers and memory on this device.</p>
+      <p><b>Haptics:</b> every on-screen key sends a short vibration when supported. The phone's system vibration setting controls its strength.</p>
+      <p><b>Note:</b> this is an independent 12C-style companion, not an official HP product. Some advanced original functions (such as keystroke programming and bond/depreciation routines) are not implemented.</p>
+    </section>
+    <div class="footer"><span>CLASSIC LAYOUT</span><span id="footerStatus" class="status-pill">HAPTIC ON</span><span>OFFLINE READY</span></div>
+  </main>
+  <div class="toast" id="toast" role="status"></div>
+  <div class="rotate-prompt" id="rotatePrompt" aria-live="polite">
+    <div class="rotate-icon">↻</div>
+    <strong>ROTATE YOUR PHONE</strong>
+    <span>12C Classic works in landscape mode</span>
+  </div>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const screen = $('screenValue');
+  const prefixIndicator = $('prefixIndicator');
+  const beginIndicator = $('beginIndicator');
+  const modeIndicator = $('modeIndicator');
+  const leftStatus = $('leftStatus');
+  const toastEl = $('toast');
+
+  const state = {
+    stack: [0, 0, 0, 0], // X, Y, Z, T
+    lastX: 0,
+    entry: '0',
+    entering: false,
+    lift: true,
+    prefix: null,
+    command: null,
+    commandOp: null,
+    commandRegister: null,
+    financialPending: false,
+    financial: { n: 0, i: 0, PV: 0, PMT: 0, FV: 0 },
+    begin: false,
+    registers: Array(20).fill(0),
+    cashFlows: [],
+    actualDays: false,
+    pendingNj: 1,
+    stats: [],
+    haptics: true,
+    decimals: 2,
+    error: '',
+    lastMessage: 'READY',
+    powered: true, prog: [], pc: 0, prgm: false, running: false, gto: null, skip: false, dateText: null
+  };
+
+  const fmt = (v, max = 10) => {
+    if (!Number.isFinite(v)) return '0.00';
+    if (Math.abs(v) < 1e-10) v = 0;
+    let s = Number(v).toLocaleString('en-US', { minimumFractionDigits: state.decimals, maximumFractionDigits: state.decimals, useGrouping: true });
+    if (s.length > max) {
+      for (let d = Math.min(state.decimals, 6); d >= 0; d--) {
+        s = Number(v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: true });
+        if (s.length <= max) break;
+      }
+    }
+    if (s.length > max) s = Number(v).toExponential(3).replace('e', 'E');
+    return s.slice(0, max);
+  };
+  const getX = () => state.entering ? Number(state.entry || 0) : state.stack[0];
+  const setMessage = (msg, toast = false) => {
+    state.lastMessage = msg;
+    leftStatus.textContent = msg;
+    if (toast) showToast(msg);
+  };
+  let toastTimer;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1450);
+  }
+  const lab=(t)=>t?((t.p?t.p+' ':'')+t.k):'';
+  function render() {
+    if (state.running) return;
+    const value = state.prgm ? String(state.pc).padStart(2,'0')+'-  '+lab(state.prog[state.pc-1]) : state.entering ? state.entry : (state.dateText || fmt(state.stack[0]));
+    screen.textContent = state.powered ? (state.error || value) : '';
+    prefixIndicator.textContent = state.prefix === 'f' ? 'f' : state.prefix === 'g' ? 'g' : '';
+    beginIndicator.textContent = state.begin ? 'BEGIN' : '';
+    modeIndicator.textContent = state.powered ? '' : 'OFF';
+    $('footerStatus').textContent = state.haptics ? 'HAPTIC ON' : 'HAPTIC OFF';
+    $('hapticToggle').textContent = state.haptics ? 'HAPTIC ✓' : 'HAPTIC OFF';
+    $('hapticToggle').setAttribute('aria-pressed', String(state.haptics));
+    $('rightStatus').textContent = state.command ? state.command + '…' : '10 DIGIT · 12 DIGIT INTERNAL';
+    $('userIndicator').textContent = state.powered ? (state.prgm ? 'PRGM' : state.dateFormat==='DMY' ? 'D.MY' : '') : '';
+  }
+  function haptic() {
+    if (!state.haptics) return;
+    try { if (navigator.vibrate) navigator.vibrate(9); } catch (_) {}
+  }
+  function save() {
+    if (state.running) return;
+    try {
+      localStorage.setItem('12c-classic-state', JSON.stringify({
+        stack: state.stack, lastX: state.lastX, financial: state.financial, begin: state.begin,
+        registers: state.registers, cashFlows: state.cashFlows, pendingNj: state.pendingNj,
+        stats: state.stats, prog: state.prog, decimals: state.decimals, haptics: state.haptics, actualDays: state.actualDays, dateFormat: state.dateFormat || 'MDY'
+      }));
+    } catch (_) {}
+  }
+  function load() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('12c-classic-state') || 'null');
+      if (!saved) return;
+      if (Array.isArray(saved.stack) && saved.stack.length === 4) state.stack = saved.stack.map(Number);
+      if (typeof saved.lastX === 'number') state.lastX = saved.lastX;
+      if (saved.financial) state.financial = { ...state.financial, ...saved.financial };
+      if (typeof saved.begin === 'boolean') state.begin = saved.begin;
+      if (Array.isArray(saved.registers) && saved.registers.length === 20) state.registers = saved.registers;
+      if (Array.isArray(saved.cashFlows)) state.cashFlows = saved.cashFlows;
+      if (typeof saved.pendingNj === 'number') state.pendingNj = saved.pendingNj;
+      if (Array.isArray(saved.stats)) state.stats = saved.stats;
+      if (Array.isArray(saved.prog)) state.prog = saved.prog;
+      if (Number.isInteger(saved.decimals)) state.decimals = Math.max(0, Math.min(9, saved.decimals));
+      if (typeof saved.haptics === 'boolean') state.haptics = saved.haptics;
+      if (typeof saved.actualDays === 'boolean') state.actualDays = saved.actualDays;
+      if (saved.dateFormat === 'DMY' || saved.dateFormat === 'MDY') state.dateFormat = saved.dateFormat;
+    } catch (_) {}
+  }
+  const pe=(e)=>{const v=Number(String(e||'0').replace(/E(-?)$/,(m,sg)=>'E'+sg+'0'));return Number.isFinite(v)?v:0;};
+  function endEntry() {
+    if (state.entering) {
+      state.stack[0] = pe(state.entry);
+      state.entering = false;
+    }
+  }
+  function setX(value, lift = false) {
+    if (lift) {
+      state.stack = [value, state.stack[0], state.stack[1], state.stack[2]];
+    } else state.stack[0] = value;
+    state.entry = String(value);
+    state.entering = false;
+    state.lift = true;
+    state.error = '';
+  }
+  function startEntry(ch) {
+    if (!state.powered) state.powered = true;
+    if (state.error) state.error = '';
+    if (!state.entering) {
+      const oldX = state.stack[0];
+      if (state.lift) state.stack = [0, oldX, state.stack[1], state.stack[2]];
+      state.entry = ch === '.' ? '0.' : ch;
+      state.entering = true;
+      state.financialPending = false;
+    } else {
+      if (ch === '.' && state.entry.includes('.')) return;
+      if (state.entry.replace('-', '').length >= 10 && ch !== '.') return;
+      if (state.entry === '0' && ch !== '.') state.entry = ch;
+      else if (state.entry === '-0' && ch !== '.') state.entry = '-' + ch;
+      else state.entry += ch;
+    }
+    state.lift = true;
+    render(); save();
+  }
+  function chs() {
+    if (state.entering) {
+      if (state.entry.includes('E')) {
+        const parts = state.entry.split('E');
+        parts[1] = String(-(Number(parts[1] || 0)));
+        state.entry = parts[0] + 'E' + parts[1];
+      } else if (state.entry.startsWith('-')) state.entry = state.entry.slice(1);
+      else state.entry = '-' + state.entry;
+    } else state.stack[0] = -state.stack[0];
+    render(); save();
+  }
+  function eex() {
+    if (!state.entering) {
+      state.entry = String(state.stack[0]) + 'E';
+      state.entering = true;
+    } else if (!state.entry.includes('E')) state.entry += 'E';
+    render();
+  }
+  function enter() {
+    endEntry();
+    state.stack = [state.stack[0], state.stack[0], state.stack[1], state.stack[2]];
+    state.lift = false;
+    state.financialPending = false;
+    setMessage('ENTER'); render(); save();
+  }
+  function binary(op) {
+    endEntry();
+    const x = state.stack[0], y = state.stack[1];
+    state.lastX = x;
+    let result;
+    switch (op) {
+      case '+': result = y + x; break;
+      case '−': result = y - x; break;
+      case '×': result = y * x; break;
+      case '÷': if (x === 0) return fail('ERROR 0'); result = y / x; break;
+      case 'y^x': result = Math.pow(y, x); break;
+      default: return;
+    }
+    if (!Number.isFinite(result)) return fail('ERROR 0');
+    state.stack = [result, state.stack[2], state.stack[3], state.stack[3]];
+    state.entering = false; state.lift = true; state.financialPending = false;
+    setMessage(op); render(); save();
+  }
+  function unary(fn) {
+    endEntry();
+    const x = state.stack[0]; state.lastX = x;
+    let r;
+    switch (fn) {
+      case '1/x': if (x === 0) return fail('ERROR 0'); r = 1 / x; break;
+      case 'sqrt': if (x < 0) return fail('ERROR 0'); r = Math.sqrt(x); break;
+      case 'ln': if (x <= 0) return fail('ERROR 0'); r = Math.log(x); break;
+      case 'e^x': r = Math.exp(x); break;
+      case '10^x': r = Math.pow(10, x); break;
+      case 'x²': r = x * x; break;
+      case 'round': r = Number(x.toFixed(state.decimals)); break;
+      case 'frac': r = x - Math.trunc(x); break;
+      case 'int': r = Math.trunc(x); break;
+      default: r = x;
+    }
+    if (!Number.isFinite(r)) return fail('ERROR 0');
+    state.stack[0] = r; state.entering = false; state.lift = true; state.financialPending = false;
+    setMessage(fn); render(); save();
+  }
+  function fail(code) { state.error = code; state.entering = false; state.financialPending = false; setMessage(code); render(); }
+  function swapXY() { endEntry(); [state.stack[0], state.stack[1]] = [state.stack[1], state.stack[0]]; state.lift = true; render(); save(); }
+  function rollDown() { endEntry(); const [x,y,z,t] = state.stack; state.stack = [y,z,t,x]; state.lift = true; render(); save(); }
+  function clearX() { state.stack[0] = 0; state.entry = '0'; state.entering = false; state.error = ''; state.lift = false; state.financialPending = false; setMessage('CLX'); render(); save(); }
+  function clearFinancial() { state.financial = { n:0, i:0, PV:0, PMT:0, FV:0 }; state.cashFlows = []; state.pendingNj = 1; state.financialPending = false; setMessage('FIN CLEARED', true); render(); save(); }
+  function clearAll() {
+    state.stack = [0,0,0,0]; state.lastX = 0; state.entry = '0'; state.entering = false; state.lift = true;
+    state.financial = { n:0, i:0, PV:0, PMT:0, FV:0 }; state.registers.fill(0); state.cashFlows=[];
+    state.pendingNj=1; state.stats=[]; state.prefix=null; state.command=null; state.error=''; state.financialPending=false;
+    setMessage('REGISTERS CLEARED', true); render(); save();
+  }
+  function tvmEquation(n, rate, pv, pmt, fv, begin) {
+    const r = rate / 100;
+    if (Math.abs(r) < 1e-12) return pv + pmt * n + fv;
+    const q = Math.pow(1 + r, n);
+    const ann = (q - 1) / r;
+    return pv * q + pmt * (begin ? (1 + r) : 1) * ann + fv;
+  }
+  function solveTVM(target) {
+    const f = state.financial;
+    let { n, i, PV, PMT, FV } = f;
+    let val;
+    if (target === 'FV') {
+      const r=i/100, q=Math.pow(1+r,n);
+      val = -tvmEquation(n,i,PV,PMT,0,state.begin);
+      if (!Number.isFinite(val)) return fail('ERROR 5');
+    } else if (target === 'PV') {
+      const r=i/100, q=Math.pow(1+r,n);
+      if (Math.abs(r)<1e-12) val = -(PMT*n + FV);
+      else val = -(PMT*(state.begin?1+r:1)*(1-Math.pow(1+r,-n))/r + FV/q);
+    } else if (target === 'PMT') {
+      const r=i/100;
+      if (Math.abs(r)<1e-12) val = -(PV+FV)/n;
+      else {
+        const a=(1-Math.pow(1+r,-n))/r;
+        val = -(PV + FV/Math.pow(1+r,n))/(a*(state.begin?1+r:1));
+      }
+    } else if (target === 'i') {
+      let guess = i === 0 ? 0.01 : Math.max(-0.95, i/100);
+      let converged = false;
+      for (let k=0;k<120;k++) {
+        const y=tvmEquation(n,guess*100,PV,PMT,FV,state.begin);
+        const eps=1e-7;
+        const dy=(tvmEquation(n,(guess+eps)*100,PV,PMT,FV,state.begin)-y)/eps;
+        if (!Number.isFinite(y) || !Number.isFinite(dy) || Math.abs(dy)<1e-13) break;
+        const next=guess-y/dy;
+        if (!Number.isFinite(next) || next <= -0.999999 || next > 1000) break;
+        if (Math.abs(next-guess)<1e-11) { guess=next; converged=true; break; }
+        guess=next;
+      }
+      if (!converged) return fail('ERROR 5');
+      val=guess*100;
+    } else if (target === 'n') {
+      const r=i/100;
+      if (Math.abs(r)<1e-12) {
+        if (PMT===0) return fail('ERROR 5');
+        val=-(PV+FV)/PMT;
+      } else {
+        const a=PMT*(state.begin?1+r:1);
+        const numerator=-(FV+PV);
+        // Robust numeric solve for number of periods.
+        let lo=0, hi=100000, found=false;
+        for(let k=0;k<160;k++) {
+          const mid=(lo+hi)/2;
+          const e=tvmEquation(mid,i,PV,PMT,FV,state.begin);
+          const e0=tvmEquation(0,i,PV,PMT,FV,state.begin);
+          const ehi=tvmEquation(hi,i,PV,PMT,FV,state.begin);
+          if (!Number.isFinite(e) || !Number.isFinite(ehi)) break;
+          if (Math.abs(e)<1e-8) { val=mid; found=true; break; }
+          if ((e0<0 && e<0) || (e0>0 && e>0)) lo=mid; else hi=mid;
+        }
+        if (!found) return fail('ERROR 5');
+      }
+    }
+    if (!Number.isFinite(val)) return fail('ERROR 5');
+    if(target==='n') val=Math.ceil(val-1e-9);
+    state.financial[target]=val;
+    state.lastX=state.stack[0];
+    setX(val,false); state.financialPending=false;
+    setMessage(target + ' SOLVED'); render(); save();
+  }
+  function financialKey(key) {
+    endEntry();
+    if (state.financialPending) { solveTVM(key); return; }
+    state.financial[key]=state.stack[0];
+    state.financialPending=true;
+    state.lift=true;
+    setMessage(key + ' STORED'); render(); save();
+  }
+  function percent(kind) {
+    endEntry();
+    const x=state.stack[0], y=state.stack[1]; state.lastX=x;
+    let r;
+    if (kind==='%') r=y*x/100;
+    else if (kind==='%T') { if(y===0) return fail('ERROR 0'); r=x/y*100; }
+    else { if(y===0) return fail('ERROR 0'); r=(x-y)/y*100; }
+    if (!Number.isFinite(r)) return fail('ERROR 0');
+    state.stack[0]=r; state.entering=false; state.lift=true; state.financialPending=false;
+    setMessage(kind); render(); save();
+  }
+  function setPrefix(which) { state.prefix = which; state.command=null; setMessage(which.toUpperCase() + ' PREFIX'); render(); }
+  function registerCommand(kind, key) {
+    if (key === '.') return null;
+    const idx=Number(key);
+    if (!Number.isInteger(idx) || idx<0 || idx>9) return null;
+    endEntry();
+    if (kind==='STO') state.registers[idx]=state.stack[0];
+    else state.stack[0]=state.registers[idx];
+    state.entering=false; state.lift=true; state.financialPending=false;
+    setMessage(kind + ' R' + idx); render(); save();
+  }
+  function registerArithmetic(op, idx) {
+    if (!Number.isInteger(idx)) return;
+    endEntry();
+    const v=state.registers[idx], x=state.stack[0];
+    if(op==='+') state.registers[idx]=v+x;
+    if(op==='−') state.registers[idx]=v-x;
+    if(op==='×') state.registers[idx]=v*x;
+    if(op==='÷') { if(x===0) return fail('ERROR 0'); state.registers[idx]=v/x; }
+    state.command=null; state.commandOp=null; state.commandRegister=null;
+    setMessage('STO R' + idx); render(); save();
+  }
+  function addCashFlow(type) {
+    endEntry(); const x=state.stack[0];
+    if(type==='CF0') { state.cashFlows=[{v:x,n:1}]; state.pendingNj=1; }
+    else if(type==='CFj') { state.cashFlows.push({v:x,n:1}); state.pendingNj=1; }
+    else if(type==='Nj') {
+      if(state.cashFlows.length===0) state.cashFlows.push({v:0,n:1});
+      state.cashFlows[state.cashFlows.length-1].n=Math.max(1,Math.floor(x));
+      state.pendingNj=1;
+    }
+    setMessage(type + ' STORED'); render(); save();
+  }
+  function npv() {
+    const rate=state.financial.i/100;
+    if (!state.cashFlows.length) return fail('ERROR 6');
+    let total=0, period=0;
+    for(const cf of state.cashFlows) for(let j=0;j<cf.n;j++) { total += cf.v/Math.pow(1+rate,period); period++; }
+    setX(total,false); setMessage('NPV'); render(); save();
+  }
+  function irr() {
+    if (!state.cashFlows.length) return fail('ERROR 6');
+    const flows=[]; for(const cf of state.cashFlows) for(let j=0;j<cf.n;j++) flows.push(cf.v);
+    const f=(r)=>flows.reduce((sum,v,k)=>sum+v/Math.pow(1+r,k),0);
+    let a=-0.9999,b=10,fa=f(a),fb=f(b), found=false;
+    for(let k=0;k<80 && fa*fb>0;k++){ b*=2; fb=f(b); }
+    if(fa*fb>0) return fail('ERROR 7');
+    for(let k=0;k<180;k++){const m=(a+b)/2,fm=f(m); if(Math.abs(fm)<1e-8){a=b=m;found=true;break;} if(fa*fm<=0){b=m;fb=fm;}else{a=m;fa=fm;}}
+    const r=(a+b)/2; if(!Number.isFinite(r)) return fail('ERROR 7');
+    state.financial.i=r*100; setX(r*100,false); setMessage('IRR'); render(); save();
+  }
+  function statsAdd() {
+    endEntry(); state.stats.push({x:state.stack[0],y:state.stack[1]}); state.lastX=state.stack[0];
+    state.stack[0]=state.stats.length; state.lift=false; state.entering=false; setMessage('Σ+'); render(); save();
+  }
+  function statsSub() {
+    endEntry(); const x=state.stack[0], y=state.stack[1]; state.lastX=x;
+    let k=state.stats.findIndex(p=>p.x===x&&p.y===y); if(k<0) k=state.stats.length-1;
+    if(k>=0) state.stats.splice(k,1);
+    state.stack[0]=state.stats.length; state.lift=false; render(); save();
+  }
+  function statsClear() { state.stats=[]; setMessage('Σ CLEARED',true); render(); save(); }
+  function clearSigma() { state.stats=[]; state.stack=[0,0,0,0]; state.entry='0'; state.entering=false; state.lift=true; state.financialPending=false; setMessage('Σ CLEARED',true); render(); save(); }
+  function sums() {
+    const n=state.stats.length, S={n,x:0,y:0,xx:0,yy:0,xy:0};
+    state.stats.forEach(p=>{S.x+=p.x;S.y+=p.y;S.xx+=p.x*p.x;S.yy+=p.y*p.y;S.xy+=p.x*p.y;}); return S;
+  }
+  function stat(kind) {
+    endEntry(); const S=sums(), n=S.n;
+    if(n<1 || (kind!=='mean' && kind!=='wmean' && n<2)) return fail('ERROR 2');
+    const x=state.stack[0]; state.lastX=x; let a,b;
+    const den=n*S.xx-S.x*S.x, sl=(n*S.xy-S.x*S.y)/den, ic=(S.y-sl*S.x)/n;
+    const r=(n*S.xy-S.x*S.y)/Math.sqrt(den*(n*S.yy-S.y*S.y));
+    if(kind==='mean'){a=S.x/n;b=S.y/n;}
+    else if(kind==='sd'){a=Math.sqrt((S.xx-S.x*S.x/n)/(n-1));b=Math.sqrt((S.yy-S.y*S.y/n)/(n-1));}
+    else if(kind==='wmean'){if(S.y===0) return fail('ERROR 2'); a=S.xy/S.y; b=state.stack[1];}
+    else if(kind==='xhat'){a=(x-ic)/sl;b=r;} else {a=ic+sl*x;b=r;}
+    if(!Number.isFinite(a)||!Number.isFinite(b)) return fail('ERROR 2');
+    state.stack=[a,b,state.stack[1],state.stack[2]]; state.lift=true; state.entering=false; render(); save();
+  }
+  const dec=(v)=>{
+    const mode=state.dateFormat||'MDY', av=Math.abs(v), a=Math.floor(av), rest=Math.round((av-a)*1e6);
+    const b=Math.floor(rest/10000), y=rest%10000, m=mode==='DMY'?b:a, d=mode==='DMY'?a:b;
+    const t=new Date(Date.UTC(y,m-1,d));
+    if(y<1582||t.getUTCFullYear()!==y||t.getUTCMonth()!==m-1||t.getUTCDate()!==d) return null;
+    return {t:t.getTime(),y,m,d};
+  };
+  const enc=(ms)=>{ const t=new Date(ms), y=t.getUTCFullYear(), m=t.getUTCMonth()+1, d=t.getUTCDate();
+    const v=(state.dateFormat==='DMY'?d+m/100:m+d/100)+y/1e6; const wd=((t.getUTCDay()+6)%7)+1;
+    return {v:Math.round(v*1e6)/1e6, text:(state.dateFormat==='DMY'?`${String(d).padStart(2,'0')}-${String(m).padStart(2,'0')}`:`${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`)+`-${y}  ${wd}`}; };
+  function dateAdd() {
+    endEntry(); const days=Math.trunc(state.stack[0]), a=dec(state.stack[1]);
+    if(!a) return fail('ERROR 8');
+    const e=enc(a.t+days*86400000);
+    state.lastX=state.stack[0]; state.stack=[e.v,state.stack[2],state.stack[3],state.stack[3]];
+    state.lift=true; state.entering=false; state.dateText=e.text; setMessage('DATE'); render(); save();
+  }
+  function daysBetween() {
+    endEntry(); const a=dec(state.stack[1]), b=dec(state.stack[0]);
+    if(!a||!b) return fail('ERROR 8');
+    const actual=Math.round((b.t-a.t)/86400000);
+    const d360=(b.y-a.y)*360+(b.m-a.m)*30+(Math.min(b.d,30)-Math.min(a.d,30));
+    state.lastX=state.stack[0]; state.stack=[actual,d360,state.stack[3],state.stack[3]];
+    state.lift=true; state.entering=false; setMessage('ΔDYS'); render(); save();
+  }
+  const toast=(m)=>{showToast(m);setMessage(m);};
+  function handleGold(key) {
+    if(/^\d$/.test(key)) { state.decimals=Number(key); endEntry(); state.lift=true; setMessage('DECIMALS '+key); return; }
+    switch(key) {
+      case 'n': amortize(); break;
+      case 'i': simpleInterest(); break;
+      case 'PV': npv(); break;
+      case 'PMT': unary('round'); break;
+      case 'FV': irr(); break;
+      case 'y^x': bondPrice(); break;
+      case '1/x': bondYield(); break;
+      case '%T': depreciation('SL'); break;
+      case 'Δ%': depreciation('SOYD'); break;
+      case '%': depreciation('DB'); break;
+      case 'R/S': state.prgm=true; setMessage('PRGM'); break;
+      case 'R↓': state.pc=0; setMessage('PRGM CLEARED'); break;
+      case 'SST': clearSigma(); break;
+      case 'x↔y': clearFinancial(); break;
+      case 'CLx': clearAll(); break;
+      case 'ENTER': state.prefix=null; setMessage('PREFIX CLEARED'); break;
+      default: setMessage('NO f FUNCTION');
+    }
+  }
+  function handleBlue(key) {
+    if(/^\d$/.test(key)||key==='.') {}
+    switch(key) {
+      case 'n': endEntry(); state.financial.n=state.stack[0]*12; setX(state.financial.n,false); state.financialPending=true; setMessage('12×'); break;
+      case 'i': endEntry(); state.financial.i=state.stack[0]/12; setX(state.financial.i,false); state.financialPending=true; setMessage('12÷'); break;
+      case 'PV': addCashFlow('CF0'); break;
+      case 'PMT': addCashFlow('CFj'); break;
+      case 'FV': addCashFlow('Nj'); break;
+      case 'CHS': dateAdd(); break;
+      case '7': state.begin=true; setMessage('BEGIN MODE'); break;
+      case '8': state.begin=false; setMessage('END MODE'); break;
+      case '9': toast('P-00 r-20'); break;
+      case 'y^x': unary('sqrt'); break;
+      case '1/x': unary('e^x'); break;
+      case '%T': unary('ln'); break;
+      case 'Δ%': unary('frac'); break;
+      case '%': unary('int'); break;
+      case 'EEX': daysBetween(); break;
+      case '4': state.dateFormat='DMY'; setMessage('D.MY'); break;
+      case '5': state.dateFormat='MDY'; setMessage('M.DY'); break;
+      case '6': stat('wmean'); break;
+      case '1': stat('xhat'); break;
+      case '2': stat('yhat'); break;
+      case '3': { endEntry(); const x=state.stack[0]; if(x<0||x>69||x!==Math.floor(x)) return fail('ERROR 0'); let f=1; for(let k=2;k<=x;k++) f*=k; state.lastX=x; state.stack[0]=f; state.lift=true; render(); break; }
+      case '0': stat('mean'); break;
+      case '.': stat('sd'); break;
+      case 'Σ+': statsSub(); break;
+      case 'ENTER': { endEntry(); const cur=state.stack[0]; setX(state.lastX,true); state.lastX=cur; setMessage('LSTx'); break; }
+      case '−': if(state.entering) { state.entry=state.entry.slice(0,-1); if(state.entry===''||state.entry==='-') state.entry='0'; render(); } else clearX(); break;
+      case 'R↓': state.gto=''; setMessage('GTO'); break;
+      case 'SST': state.pc=Math.max(0,state.pc-1); setMessage('BST'); break;
+      case 'R/S': break;
+      case 'x↔y': if(state.running){ endEntry(); if(!(state.stack[0]<=state.stack[1])) state.skip=true; } break;
+      case 'CLx': if(state.running){ endEntry(); if(state.stack[0]!==0) state.skip=true; } break;
+      default: setMessage('NO g FUNCTION');
+    }
+  }
+  function simpleInterest() {
+    endEntry(); const {n,i,PV}=state.financial, base=-PV*n*i/100;
+    const a=base/360, b=base/365;
+    state.stack=[a,b,state.stack[1],state.stack[2]]; state.lift=true; state.entering=false; setMessage('INT'); render(); save();
+  }
+  function amortize() {
+    endEntry(); const k=Math.floor(state.stack[0]);
+    if(!(k>=1)) return fail('ERROR 5');
+    const r=state.financial.i/100, d=state.decimals, rd=(v)=>Number(v.toFixed(d)), PMT=state.financial.PMT;
+    let bal=state.financial.PV, I=0, P=0;
+    for(let j=0;j<k;j++) {
+      const intr = (state.begin && state.financial.n===0 && j===0) ? 0 : -rd(bal*r);
+      const pr=PMT-intr; I+=intr; P+=pr; bal+=pr;
+    }
+    state.financial.PV=bal; state.financial.n+=k; state.financialPending=false;
+    state.stack=[I,P,state.stack[1],state.stack[2]]; state.lift=true; state.entering=false; setMessage('AMORT'); render(); save();
+  }
+  const addM=(t,k)=>{ const d=new Date(t), y=d.getUTCFullYear(), m=d.getUTCMonth()+k, dd=d.getUTCDate();
+    const last=new Date(Date.UTC(y,m+1,0)).getUTCDate(); return Date.UTC(y,m,Math.min(dd,last)); };
+  function bondCalc(yld) {
+    const st=dec(state.stack[1]), mt=dec(state.stack[0]);
+    if(!st||!mt||mt.t<=st.t) return null;
+    let j=0; while(addM(mt.t,-6*j)>st.t) j++;
+    const last=addM(mt.t,-6*j), next=addM(mt.t,-6*(j-1)), N=j, L=new Date(last), S=new Date(st.t);
+    const d30=(a,b)=>(b.getUTCFullYear()-a.getUTCFullYear())*360+(b.getUTCMonth()-a.getUTCMonth())*30+(Math.min(b.getUTCDate(),30)-Math.min(a.getUTCDate(),30));
+    let A,E;
+    if(state.actualDays){ A=(st.t-last)/86400000; E=(next-last)/86400000; } else { A=d30(L,S); E=180; }
+    const C=state.financial.PMT/2, y=yld/200, w=(E-A)/E;
+    let P=100/Math.pow(1+y,N-1+w); for(let k=1;k<=N;k++) P+=C/Math.pow(1+y,k-1+w);
+    return {price:P-C*A/E, acc:C*A/E};
+  }
+  function bondPrice() {
+    endEntry(); const r=bondCalc(state.financial.i);
+    if(!r) return fail('ERROR 8');
+    state.stack=[r.price,r.acc,state.stack[2],state.stack[3]]; state.lift=true; state.entering=false; setMessage('PRICE'); render(); save();
+  }
+  function bondYield() {
+    endEntry(); const target=state.financial.PV; let lo=-99, hi=500;
+    if(!bondCalc(0)) return fail('ERROR 8');
+    for(let k=0;k<200;k++){ const m=(lo+hi)/2; if(bondCalc(m).price>target) lo=m; else hi=m; }
+    const y=(lo+hi)/2; state.financial.i=y; state.stack=[y,state.stack[1],state.stack[2],state.stack[3]]; state.lift=true; state.entering=false; setMessage('YTM'); render(); save();
+  }
+  function run() {
+    if(!state.prog.length) return;
+    endEntry(); state.running=true; let steps=0, bad=false;
+    try {
+      while(true) {
+        if(++steps>50000){ bad=true; break; }
+        if(state.pc>=state.prog.length){ state.pc=0; break; }
+        const t=state.prog[state.pc++];
+        if(t.k==='R/S'&&!t.p) break;
+        if(t.k==='R↓'&&t.p==='g'){ const a=state.prog[state.pc++], b=state.prog[state.pc++]; state.pc=Number((a?a.k:'0')+(b?b.k:'0')); continue; }
+        state.prefix=t.p; handleKey(t.k);
+        if(state.error) break;
+        if(state.skip){ state.skip=false; const n=state.prog[state.pc]; state.pc+= (n&&n.k==='R↓'&&n.p==='g')?3:1; }
+      }
+    } finally { state.running=false; state.prefix=null; state.skip=false; if(bad) fail('ERROR 9'); render(); save(); }
+  }
+  function depreciation(method) {
+    endEntry(); const yr=Math.floor(state.stack[0]), {n:life,PV:cost,FV:salv,i}=state.financial;
+    if(!(yr>=1)||!(life>=yr)) return fail('ERROR 5');
+    let dep=0, tot=0, book=cost;
+    for(let j=1;j<=yr;j++) {
+      if(method==='SL') dep=(cost-salv)/life;
+      else if(method==='SOYD') dep=(cost-salv)*(life-j+1)/(life*(life+1)/2);
+      else { dep=book*(i/100)/life; if(book-dep<salv) dep=Math.max(0,book-salv); }
+      tot+=dep; book-=dep;
+    }
+    state.stack=[dep,cost-salv-tot,state.stack[1],state.stack[2]]; state.lift=true; state.entering=false; setMessage(method); render(); save();
+  }
+  function handleKey(key) {
+    if(!state.powered && key!=='ON') state.powered=true;
+    state.dateText=null;
+    if(state.prgm && !state.running) {
+      if(key==='f'||key==='g') { state.prefix=key; render(); return; }
+      const p=state.prefix; state.prefix=null;
+      if(key!=='ON') {
+        if(p==='f' && key==='R/S') { state.prgm=false; state.pc=0; setMessage('RUN'); render(); save(); return; }
+        if(p==='f' && key==='R↓') { state.prog=[]; state.pc=0; render(); save(); return; }
+        if(!p && key==='SST') { state.pc=Math.min(state.prog.length,state.pc+1); render(); return; }
+        if(p==='g' && key==='SST') { state.pc=Math.max(0,state.pc-1); render(); return; }
+        state.prog.splice(state.pc,0,{k:key,p:p}); state.pc++; render(); save(); return;
+      }
+    }
+    if(state.gto!==null && /^\d$/.test(key)) { state.gto+=key; if(state.gto.length===2){ state.pc=Number(state.gto); state.gto=null; setMessage('GTO '+state.pc); } render(); return; }
+    if(state.error && key!=='ON' && key!=='CLx') state.error='';
+    // STO followed by an arithmetic operator and a register digit updates that register.
+    if(state.command === 'STO_ARITH') {
+      if(/^\d$/.test(key)) { const idx=Number(key); const op=state.commandOp; registerArithmetic(op,idx); return; }
+      if(['+','−','×','÷'].includes(key)) { state.commandOp=key; return; }
+    }
+    // Function prefix is consumed by exactly one next key.
+    if(state.prefix) {
+      const which=state.prefix; state.prefix=null;
+      if(which==='f') { handleGold(key); render(); save(); return; }
+      if(which==='g') { handleBlue(key); render(); save(); return; }
+    }
+    if(state.command==='STO' || state.command==='RCL') {
+      if(/^\d$/.test(key)) { const cmd=state.command; state.command=null; registerCommand(cmd,key); return; }
+      if(state.command==='RCL' && ['n','i','PV','PMT','FV'].includes(key)) { state.stack[0]=state.financial[key]; state.command=null; state.entering=false; state.lift=true; setMessage('RCL '+key); render(); save(); return; }
+      if(state.command==='STO' && ['+','−','×','÷'].includes(key)) { state.command='STO_ARITH'; state.commandOp=key; setMessage('STO '+key); render(); return; }
+    }
+    if(/^\d$/.test(key)) { startEntry(key); return; }
+    switch(key) {
+      case '.': if(!state.entering) startEntry('.'); else if(!state.entry.includes('.')) { state.entry+='.'; render(); } break;
+      case 'CHS': chs(); break;
+      case 'EEX': eex(); break;
+      case 'ENTER': enter(); break;
+      case '+': case '−': case '×': case '÷': binary(key); break;
+      case 'y^x': binary('y^x'); break;
+      case '1/x': unary('1/x'); break;
+      case '%': case '%T': case 'Δ%': percent(key); break;
+      case 'x↔y': swapXY(); break;
+      case 'R↓': rollDown(); break;
+      case 'CLx': clearX(); break;
+      case 'f': setPrefix('f'); break;
+      case 'g': setPrefix('g'); break;
+      case 'STO': state.command='STO'; setMessage('STO'); render(); break;
+      case 'RCL': state.command='RCL'; setMessage('RCL'); render(); break;
+      case 'ON': if(state.powered) { state.powered=false; state.prefix=null; state.command=null; setMessage('OFF'); } else { state.powered=true; setMessage('ON'); } render(); break;
+      case 'n': case 'i': case 'PV': case 'PMT': case 'FV': financialKey(key); break;
+      case 'Σ+': statsAdd(); break;
+      case 'R/S': run(); break;
+      case 'SST': if(state.pc<state.prog.length){ const t=state.prog[state.pc++]; state.prefix=t.p; handleKey(t.k); } break;
+      default: setMessage(key);
+    }
+  }
+
+  document.querySelectorAll('.key').forEach(button => {
+    button.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'touch' || event.pointerType === 'pen') haptic();
+    }, {passive:true});
+    button.addEventListener('click', () => {
+      // Pointerdown already provides the tactile pulse on touch. Click handles mouse/keyboard.
+      handleButtonNoHaptic(button);
+    });
+  });
+  function handleButtonNoHaptic(button) {
+    button.classList.add('pressed'); setTimeout(()=>button.classList.remove('pressed'),90);
+    const key=button.dataset.key;
+    handleKey(key);
+  }
+  // Keyboard input is useful for desktop testing and still gives the same short feedback on Android hardware keyboards.
+  const keyMap = { '*':'×', '/':'÷', '-':'−', '.':'.', ',':'.', 'Enter':'ENTER', 'Backspace':'CLx', 'Escape':'ON' };
+  document.addEventListener('keydown', (e) => {
+    if(e.repeat) return;
+    let key=keyMap[e.key] || e.key;
+    if(['f','g','+','%'].includes(key) || /^\d$/.test(key) || ['×','÷','−','.','ENTER','CLx','ON'].includes(key)) {
+      e.preventDefault(); haptic(); handleKey(key);
+    }
+  });
+  $('hapticToggle').addEventListener('click', () => {
+    state.haptics=!state.haptics;
+    if(state.haptics) haptic();
+    render(); save();
+    showToast(state.haptics?'HAPTICS ENABLED':'HAPTICS DISABLED');
+  });
+  $('helpToggle').addEventListener('click', () => {
+    $('helpPanel').classList.toggle('open');
+    $('helpToggle').setAttribute('aria-expanded', String($('helpPanel').classList.contains('open')));
+  });
+  $('closeHelp').addEventListener('click', () => {
+    $('helpPanel').classList.remove('open'); $('helpToggle').setAttribute('aria-expanded','false');
+  });
+
+  // Android installed PWAs can lock to landscape; browser restrictions are handled gracefully.
+  async function requestLandscape() {
+    try {
+      if (screen.orientation && screen.orientation.lock) {
+        await screen.orientation.lock('landscape');
+      }
+    } catch (_) { /* The manifest and rotate prompt provide the fallback. */ }
+  }
+  document.addEventListener('pointerdown', requestLandscape, { once:true, passive:true });
+  load(); render();
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+  }
+})();
+</script>
+<script>
+(() => {
+  const kb=document.getElementById('keyboard'), app=document.querySelector('.app');
+  const wraps=[...kb.querySelectorAll('.key-wrap')], brs=[...kb.querySelectorAll('.br')];
+  brs.forEach(e=>{e.dataset.l=parseFloat(e.style.left);e.dataset.t=parseFloat(e.style.top);e.dataset.w=parseFloat(e.style.width);});
+  const rowTop=[130,187,247,307], root=document.documentElement;
+  const imp=(el,prop,v)=>el.style.setProperty(prop,v,'important');
+  function layout() {
+    const s=Math.min(innerWidth/600,innerHeight/375), W=innerWidth/s, H=innerHeight/s, f=W/600, g=H/375;
+    root.style.setProperty('--s',s); root.style.setProperty('--f',f); root.style.setProperty('--g',g);
+    imp(app,'width',W+'px'); imp(app,'height',H+'px');
+    kb.style.width=W+'px'; kb.style.height=H+'px';
+    imp(document.querySelector('.metal-panel'),'height',102*g+'px');
+    const df=document.querySelector('.display-frame');
+    imp(df,'left',93*f+'px'); imp(df,'top',22*g+'px'); imp(df,'width',312*f+'px'); imp(df,'height',66*g+'px');
+    const cx=c=>(57+(541-57)/9*c)*f;
+    let n=0;
+    wraps.forEach(w=>{
+      if(w.classList.contains('enter-wrap')){ w.style.width=38*f+'px'; w.style.height=92*g+'px'; w.style.left=(cx(5)-19*f)+'px'; w.style.top=247*g+'px'; n++; return; }
+      let r=Math.floor(n/10), c=n%10;
+      if(r===3){ c=n-30; if(c>=5) c+=1; }
+      w.style.width=40*f+'px'; w.style.height=32*g+'px'; w.style.left=(cx(c)-20*f)+'px'; w.style.top=rowTop[r]*g+'px'; n++;
+    });
+    brs.forEach(e=>{ e.style.left=e.dataset.l*f+'px'; e.style.width=e.dataset.w*f+'px'; e.style.top=e.dataset.t*g+'px'; });
+  }
+  layout(); addEventListener('resize',layout);
+})();
+</script>
+</body>
+</html>
